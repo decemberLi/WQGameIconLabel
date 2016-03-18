@@ -96,6 +96,15 @@
     }
     return CGSizeMake(300, 60);
 }
+
+-(CGSize)sizeThatFits:(CGSize)size
+{
+    if (size.width!=0) {
+        self.preferredMaxLayoutWidth = size.width;
+    }
+    [self creatDrawString];
+    return [self intrinsicContentSize];
+}
 -(void)drawRect:(CGRect)rect
 {
     CGContextRef ctx = UIGraphicsGetCurrentContext();
@@ -152,17 +161,23 @@
             
             if (i==lineCount-iconLines-1) {
                 CGFloat worldWidth = CTLineGetOffsetForStringIndex(oneLine, 1000, NULL);
+                CGFloat iconStartX = self.preferredMaxLayoutWidth-iconWidth;
                 if (worldWidth+iconWidth<self.preferredMaxLayoutWidth) {
                     firstIconCount = (self.preferredMaxLayoutWidth-worldWidth)/iconsCountPerLine;
+                    iconStartX = worldWidth+5;
+                }else{
+                    NSAttributedString *truncatedString = [[NSAttributedString alloc]initWithString:@"\u2026"];
+                    CTLineRef token = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)truncatedString);
+                    CTLineTruncationType endType = kCTLineTruncationEnd;
+                    oneLine = CTLineCreateTruncatedLine(oneLine, self.preferredMaxLayoutWidth-iconWidth, endType, token);
                 }
-                NSAttributedString *truncatedString = [[NSAttributedString alloc]initWithString:@"\u2026"];
-                CTLineRef token = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)truncatedString);
-                CTLineTruncationType endType = kCTLineTruncationEnd;
-                oneLine = CTLineCreateTruncatedLine(oneLine, self.preferredMaxLayoutWidth-iconWidth, endType, token);
+                if (firstIconCount>self.icons.count) {
+                    firstIconCount = self.icons.count;
+                }
                 NSArray *firstIcons = [self.icons subarrayWithRange:NSMakeRange(0, firstIconCount)];
                 for (int j=0; j<firstIcons.count; j++) {
                     UIView *oneIcon = firstIcons[j];
-                    [oneIcon setFrame:CGRectMake(self.preferredMaxLayoutWidth-iconWidth+j*(self.iconSize.width+5), y+(_fontHeigh-self.iconSize.height), self.iconSize.width, self.iconSize.height)];
+                    [oneIcon setFrame:CGRectMake(iconStartX+j*(self.iconSize.width+5), y+(_fontHeigh-self.iconSize.height), self.iconSize.width, self.iconSize.height)];
                     if (oneIcon.superview!=self) {
                         [self addSubview:oneIcon];
                     }
@@ -242,10 +257,8 @@
 {
     self.icons = [NSMutableArray array];
     for (NSString *oneURL in urls) {
-        UIView *icon = [[UIView alloc] initWithFrame:CGRectMake(0, 0, iconSize.width, iconSize.height)];
-#warning test 需要加入sdwebimage的图片load
-        NSLog(@"%@",oneURL);
-        icon.backgroundColor = [UIColor greenColor];
+        UIImageView *icon = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, iconSize.width, iconSize.height)];
+        [icon sd_setImageWithURL:[NSURL URLWithString:oneURL] placeholderImage:nil];
         [self.icons addObject:icon];
     }
     self.iconSize = iconSize;
