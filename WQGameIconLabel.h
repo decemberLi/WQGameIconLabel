@@ -7,7 +7,7 @@
 //
 
 #import <UIKit/UIKit.h>
-IB_DESIGNABLE
+
 @interface WQGameIconLabel : UIView
 @property(nonatomic,assign)IBInspectable NSUInteger numberOfLines;
 @property(nonatomic,strong)IBInspectable UIFont *font;
@@ -15,5 +15,6 @@ IB_DESIGNABLE
 @property(nonatomic,assign)IBInspectable CGFloat lineSpace;
 @property(nonatomic,assign)IBInspectable CGFloat preferredMaxLayoutWidth;
 @property(nonatomic,strong)IBInspectable NSString *text;
+@property(nonatomic,readonly)CGFloat firstLineStringWidth;
 -(void)addIconURLs:(NSArray<NSString *> *)urls withIconSize:(CGSize)iconSize;
 @end

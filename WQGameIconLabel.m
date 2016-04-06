@@ -12,6 +12,7 @@
 @interface WQGameIconLabel ()
 {
     CGFloat _fontHeigh;
+
 }
 @property(nonatomic,strong)NSMutableParagraphStyle *paragraphStyle;
 @property(nonatomic,strong)NSMutableAttributedString *realAttString;
@@ -19,6 +20,7 @@
 @property(nonatomic,strong)NSMutableArray<UIView *> *icons;
 @property(nonatomic,assign)CGSize iconSize;
 @property(nonatomic,assign)CTFrameRef textFrame;
+@property(nonatomic,assign)CGFloat firstLineStringWidth;
 @end
 
 @implementation WQGameIconLabel
@@ -55,10 +57,7 @@
 
 -(void)dealloc
 {
-    if (self.textFrame!=NULL) {
-        CFRelease(self.textFrame);
-        self.textFrame = NULL;
-    }
+    self.textFrame = NULL;
 }
 
 -(CGSize)intrinsicContentSize
@@ -68,12 +67,14 @@
     }else{
         CFArrayRef lines = CTFrameGetLines(self.textFrame);
         NSUInteger lineCount = CFArrayGetCount(lines);
+        if (lineCount==0) {
+            return CGSizeZero;
+        }
         CGFloat maxY = 0;
-#warning TODO:在字数超过最大行数的时候，直接取的最大宽度，这里如果做的细致一些的话，还是应该把每行的高度取出来比较，拿最大宽度，如果图片高度超过了行高的话，这里高度也是错的
+
         if (lineCount>=self.numberOfLines) {
             return CGSizeMake(self.preferredMaxLayoutWidth, self.numberOfLines*(_fontHeigh+self.lineSpace));
         }
-        
         CTLineRef lastLine = CFArrayGetValueAtIndex(lines, lineCount-1);
         CGFloat worldWidth = CTLineGetOffsetForStringIndex(lastLine, 1000, NULL);
         int lastWorldIconCount = worldWidth/(self.iconSize.width+5);
@@ -137,6 +138,10 @@
 //整体行数小于maxLine
 -(void)drawLessTextInFrame:(CTFrameRef)textFrame context:(CGContextRef)context
 {
+    for (int i=0; i<self.icons.count; i++) {
+        UIView *item = self.icons[i];
+        [item removeFromSuperview];
+    }
     CFArrayRef lines = CTFrameGetLines(textFrame);
     NSInteger numberOfLines = self.numberOfLines;
     NSUInteger lineCount = CFArrayGetCount(lines);
@@ -158,18 +163,23 @@
             CGFloat y = i*(_fontHeigh+self.lineSpace);
             CGContextSetTextPosition(context,0, self.frame.size.height-_fontHeigh - y);
             CTLineRef oneLine = CFArrayGetValueAtIndex(lines, i);
-            
+            if (i==0) {
+                CGFloat worldWidth = CTLineGetOffsetForStringIndex(oneLine, 1000, NULL);
+                self.firstLineStringWidth = worldWidth;
+            }
             if (i==lineCount-iconLines-1) {
                 CGFloat worldWidth = CTLineGetOffsetForStringIndex(oneLine, 1000, NULL);
+                
                 CGFloat iconStartX = self.preferredMaxLayoutWidth-iconWidth;
                 if (worldWidth+iconWidth<self.preferredMaxLayoutWidth) {
                     firstIconCount = (self.preferredMaxLayoutWidth-worldWidth)/iconsCountPerLine;
                     iconStartX = worldWidth+5;
                 }else{
-                    NSAttributedString *truncatedString = [[NSAttributedString alloc]initWithString:@"\u2026"];
+                    NSAttributedString *truncatedString = [[NSAttributedString alloc]initWithString:@"\u2026" attributes:@{NSFontAttributeName:self.font,NSForegroundColorAttributeName:self.textColor}];
                     CTLineRef token = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)truncatedString);
                     CTLineTruncationType endType = kCTLineTruncationEnd;
-                    oneLine = CTLineCreateTruncatedLine(oneLine, self.preferredMaxLayoutWidth-iconWidth, endType, token);
+                    oneLine = CFAutorelease(CTLineCreateTruncatedLine(oneLine, self.preferredMaxLayoutWidth-iconWidth, endType, token));
+                    CFRelease(token);
                 }
                 if (firstIconCount>self.icons.count) {
                     firstIconCount = self.icons.count;
@@ -199,6 +209,10 @@
             CGFloat y = i*(_fontHeigh+self.lineSpace);
             CGContextSetTextPosition(context,0, self.frame.size.height-_fontHeigh - y);
             CTLineRef oneLine = CFArrayGetValueAtIndex(lines, i);
+            if (i==0) {
+                CGFloat worldWidth = CTLineGetOffsetForStringIndex(oneLine, 1000, NULL);
+                self.firstLineStringWidth = worldWidth;
+            }
             if (i==lineCount-1) {
                 CGFloat worldWidth = CTLineGetOffsetForStringIndex(oneLine, 1000, NULL);
                 firstIconsCount = worldWidth/(self.iconSize.width+5);
@@ -245,7 +259,7 @@
     CTFramesetterRef framesetter = CTFramesetterCreateWithAttributedString((CFAttributedStringRef)self.realAttString);
     CGMutablePathRef path = CGPathCreateMutable();
     CGPathAddRect(path, nil,CGRectMake(0, 0, self.preferredMaxLayoutWidth, CGFLOAT_MAX));
-     self.textFrame = CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), path, NULL);
+     self.textFrame = CFAutorelease(CTFramesetterCreateFrame(framesetter, CFRangeMake(0, 0), path, NULL));
     CGPathRelease(path);
     CFRelease(framesetter);
     
@@ -342,6 +356,17 @@
     }
     [self setNeedsDisplay];
     [self layoutIfNeeded];
+}
+
+-(void)setTextFrame:(CTFrameRef)textFrame
+{
+    if (textFrame!=_textFrame && _textFrame!=NULL) {
+        CFRelease(_textFrame);
+    }
+    if (textFrame!=NULL) {
+        _textFrame = CFRetain(textFrame);
+    }
+    
 }
 
 @end
