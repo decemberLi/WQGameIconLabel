@@ -119,11 +119,9 @@
     CGContextConcatCTM(ctx, transform);
     
 
-    if (self.realAttString)
+    if (self.realAttString && self.textFrame)
     {
-        if (self.textFrame) {
-            [self drawLessTextInFrame:self.textFrame context:ctx];
-        }
+        [self drawLessTextInFrame:self.textFrame context:ctx];
     }
     CGContextRestoreGState(ctx);
 }
@@ -269,6 +267,10 @@
 
 -(void)addIconURLs:(NSArray<NSString *> *)urls withIconSize:(CGSize)iconSize
 {
+    for (int i=0; i<self.icons.count; i++) {
+        UIView *item = self.icons[i];
+        [item removeFromSuperview];
+    }
     self.icons = [NSMutableArray array];
     for (NSString *oneURL in urls) {
         UIImageView *icon = [[UIImageView alloc] initWithFrame:CGRectMake(0, 0, iconSize.width, iconSize.height)];
